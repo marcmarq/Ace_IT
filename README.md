@@ -9,3 +9,7 @@ Vapi AI
 shadcn/ui 
 Google Gemeni 
 Zod
+
+
+
+and now with an enhanced securit with firebase MFA, security and information assurance is at its peak!
