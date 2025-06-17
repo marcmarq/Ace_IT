@@ -19,8 +19,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "@/firebase/client";
-import { signIn, signUp } from "@/lib/actions/auth.action";
-import MFASetup from "./MFASetup";
+import { signIn, signUp, signInWithGoogle } from "@/lib/actions/auth.action";
 
 const AuthFormSchema = (type: FormType) => {
   return z.object({
@@ -33,8 +32,6 @@ const AuthFormSchema = (type: FormType) => {
 const AuthForm = ({ type }: { type: FormType }) => {
   const router = useRouter();
   const formSchema = AuthFormSchema(type);
-  const [showMFA, setShowMFA] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -69,7 +66,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
         }
 
         toast.success("Account Created Successfully");
-        router.push("/sign-in");
+        window.location.href = "/sign-in";
       } else {
         const { email, password } = values;
         const userCredential = await signInWithEmailAndPassword(
@@ -89,19 +86,13 @@ const AuthForm = ({ type }: { type: FormType }) => {
           idToken,
         });
 
-        if (signInResult.requiresMFA) {
-          setCurrentUser(userCredential.user);
-          setShowMFA(true);
-          return;
-        }
-
         if (!signInResult.success) {
           toast.error(signInResult.message);
           return;
         }
 
         toast.success("Signed In");
-        router.push("/");
+        window.location.href = "/";
       }
     } catch (error) {
       console.log(error);
@@ -113,8 +104,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
     const provider = new GoogleAuthProvider();
     
     provider.setCustomParameters({
-      prompt: 'select_account', 
-      login_hint: '', 
+      prompt: 'select_account'
     });
 
     try {
@@ -127,37 +117,18 @@ const AuthForm = ({ type }: { type: FormType }) => {
         return;
       }
 
-      if (type === "sign-up") {
-        const res = await signUp({
-          uid: user.uid,
-          name: user.displayName || "Google User",
-          email: user.email!,
-          password: "", 
-        });
+      // For both sign-up and sign-in, we'll use signInWithGoogle
+      const signInResult = await signInWithGoogle(idToken);
 
-        if (!res?.success) {
-          toast.error(res.message);
-          return;
-        }
-
-        await signIn({
-          email: user.email!,
-          idToken,
-        });
-
-        toast.success("Account Created via Google");
-        router.push("/");
-      } else {
-        await signIn({
-          email: user.email!,
-          idToken,
-        });
-        toast.success("Signed in with Google");
-        router.push("/");
+      if (!signInResult.success) {
+        toast.error(signInResult.message || "Failed to authenticate with Google");
+        return;
       }
+
+      toast.success(type === "sign-up" ? "Account Created via Google" : "Signed in with Google");
+      window.location.href = "/";
     } catch (error) {
-      console.error(error);
-      
+      console.error("Google auth error:", error);
       
       let errorMessage = "Google Authentication failed";
       if (error instanceof Error) {
@@ -172,23 +143,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
     }
   }
 
-  const handleMFAComplete = () => {
-    setShowMFA(false);
-    toast.success("MFA setup complete");
-    router.push("/");
-  };
-
   const isSignIn = type === "sign-in";
-
-  if (showMFA) {
-    return (
-      <div className="card-border lg:min-w-[566px]">
-        <div className="flex flex-col gap-6 card py-14 px-10">
-          <MFASetup userId={currentUser.uid} onComplete={handleMFAComplete} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="card-border lg:min-w-[566px]">
@@ -248,13 +203,6 @@ const AuthForm = ({ type }: { type: FormType }) => {
             {!isSignIn ? "Sign In" : "Sign Up"}
           </Link>
         </p>
-        <button
-          type="button"
-          onClick={() => router.push("/forgot-password")}
-          className="text-center text-sm text-primary-500 hover:text-primary-600 hover:underline cursor-pointer"
-        >
-          Forgot Password?
-        </button>
       </div>
     </div>
   );

@@ -61,16 +61,6 @@ export async function signIn(params: SignInParams) {
       }
     }
 
-    // Check if user has MFA enabled
-    if (userRecord.multiFactor.enrolledFactors.length > 0) {
-      // Return special response indicating MFA is required
-      return {
-        success: false,
-        requiresMFA: true,
-        message: 'MFA verification required'
-      }
-    }
-
     await setSessionCookie(idToken);
     
     return {
@@ -91,16 +81,21 @@ export async function signIn(params: SignInParams) {
 export async function signInWithGoogle(idToken: string): Promise<{ success: boolean; message?: string }> {
   try {
     const decodedToken = await auth.verifyIdToken(idToken);
+    console.log("Google sign in - Decoded token:", decodedToken.uid);
     
     const userRef = db.collection("users").doc(decodedToken.uid);
     const userDoc = await userRef.get();
 
     if (!userDoc.exists) {
+      console.log("Google sign in - Creating new user record");
       await userRef.set({
         name: decodedToken.name || "Google User",
         email: decodedToken.email,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        id: decodedToken.uid // Add this to ensure id is set
       });
+    } else {
+      console.log("Google sign in - User record exists");
     }
 
     // Set session cookie
@@ -120,38 +115,43 @@ export async function signInWithGoogle(idToken: string): Promise<{ success: bool
 export async function setSessionCookie(idToken: string){
   const cookieStore = await cookies();
 
-  const sessionCookie = await auth.createSessionCookie(idToken, {expiresIn: ONE_WEEK * 1000, })
+  const sessionCookie = await auth.createSessionCookie(idToken, {expiresIn: ONE_WEEK * 1000})
 
   cookieStore.set('session', sessionCookie, {
     maxAge: ONE_WEEK,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false for local development
     path: '/',
     sameSite: "lax"
   })
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const cookieStore = await cookies();
+  try {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session')?.value;
 
-  const sessionCookie = cookieStore.get('session')?.value;
+    if(!sessionCookie) {
+      console.log("No session cookie found");
+      return null;
+    }
 
-  if(!sessionCookie) return null;
-
-  try{
     const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
+    console.log("Session cookie verified:", decodedClaims.uid);
 
     const userRecord = await db.collection('users').doc(decodedClaims.uid).get();
 
-    if(!userRecord.exists) return null;
+    if(!userRecord.exists) {
+      console.log("No user record found for uid:", decodedClaims.uid);
+      return null;
+    }
 
     return{
       ... userRecord.data(), 
       id: userRecord.id, 
     } as User;
   } catch (e){
-    console.log(e)
-
+    console.error("Error in getCurrentUser:", e);
     return null;
   }
 }
