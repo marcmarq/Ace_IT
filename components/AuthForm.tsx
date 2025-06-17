@@ -256,16 +256,30 @@ const AuthForm = ({ type }: { type: FormType }) => {
         </Form>
 
         {showVerifyNotice && (
-          <div className="mt-4 p-4 border border-yellow-400 bg-yellow-50 rounded">
-            <p className="mb-2">A verification email has been sent to your email address. Please verify your email to continue.</p>
-            <Button className="btn" onClick={handleResendVerification} disabled={resendLoading}>
-              {resendLoading ? "Resending..." : "Resend Verification Email"}
-            </Button>
-            <Button className="btn ml-2" onClick={handleCheckVerification} disabled={checkingVerification}>
-              {checkingVerification ? "Checking..." : "I've verified my email"}
-            </Button>
-            {resendError && <p className="text-red-500 mt-2">{resendError}</p>}
-            {checkError && <p className="text-red-500 mt-2">{checkError}</p>}
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="w-full max-w-md bg-white border border-yellow-300 rounded-lg shadow-lg p-6 flex flex-col items-center relative">
+              <div className="bg-green-100 rounded-full p-3 mb-3">
+                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h4 className="text-lg font-semibold mb-2 text-yellow-700">Verify Your Email Address</h4>
+              <p className="mb-2 text-center text-gray-700">
+                We've sent a verification email to <span className="font-semibold">{form.getValues('email')}</span>.<br/>
+                Please check your inbox and click the verification link to activate your account.
+              </p>
+              <p className="mb-4 text-sm text-gray-500 text-center">If you don't see the email, check your spam or junk folder.</p>
+              <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+                <Button className="btn w-full sm:w-auto" onClick={handleResendVerification} disabled={resendLoading}>
+                  {resendLoading ? "Resending..." : "Resend Verification Email"}
+                </Button>
+                <Button className="btn w-full sm:w-auto" onClick={handleCheckVerification} disabled={checkingVerification}>
+                  {checkingVerification ? "Checking..." : "I've verified my email"}
+                </Button>
+              </div>
+              {resendError && <p className="text-red-500 mt-3 text-center">{resendError}</p>}
+              {checkError && <p className="text-red-500 mt-1 text-center">{checkError}</p>}
+            </div>
           </div>
         )}
 
