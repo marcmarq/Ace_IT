@@ -1,68 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { resetPassword } from "@/lib/actions/auth.action";
-import Image from "next/image";
+import { completePasswordReset } from "@/lib/actions/auth.action";
 import Link from "next/link";
 
 export default function ResetPassword() {
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || "";
-  const [otp, setOtp] = useState("");
+  const oobCode = searchParams.get("oobCode");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    if (!oobCode) {
+      toast.error("Invalid reset link");
+      router.push("/forgot-password");
+    }
+  }, [oobCode, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords don't match");
+    try {
+      if (newPassword !== confirmPassword) {
+        toast.error("Passwords don't match");
+        return;
+      }
+
+      if (!oobCode) {
+        toast.error("Invalid reset link");
+        router.push("/forgot-password");
+        return;
+      }
+
+      const result = await completePasswordReset(oobCode, newPassword);
+
+      if (result.success) {
+        toast.success("Password reset successfully");
+        router.push("/sign-in");
+      } else {
+        toast.error(result.message || "Failed to reset password");
+      }
+    } catch (error) {
+      console.error("Password reset error:", error);
+      toast.error("Failed to reset password");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const result = await resetPassword(email, otp, newPassword);
-
-    if (result?.success) {
-      toast.success("Password reset successfully");
-      router.push("/sign-in");
-    } else {
-      toast.error(result?.message || "Failed to reset password");
-    }
-
-    setIsLoading(false);
   };
+
+  if (!oobCode) {
+    return null;
+  }
 
   return (
     <div className="card-border lg:min-w-[566px]">
       <div className="flex flex-col gap-6 card py-14 px-10">
-        <div className="flex flex-row gap-2 justify-center">
-          <Image src="/logo.svg" alt="logo" height={32} width={32} />
-          <h2 className="text-primary-100">AceIT</h2>
-        </div>
-        <h3>Reset Your Password</h3>
+        <h3 className="text-center">Reset Your Password</h3>
+        <p className="text-center text-muted-foreground">
+          Enter your new password below.
+        </p>
 
         <form onSubmit={handleSubmit} className="w-full space-y-6 mt-4">
-          <div className="space-y-2">
-            <label htmlFor="otp" className="block text-sm font-medium">
-              OTP
-            </label>
-            <input
-              id="otp"
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter 6-digit OTP"
-              className="w-full p-2 border rounded"
-              required
-            />
-          </div>
-
           <div className="space-y-2">
             <label htmlFor="newPassword" className="block text-sm font-medium">
               New Password

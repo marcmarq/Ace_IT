@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { sendResetOtp } from "@/lib/actions/auth.action";
-import Image from "next/image";
+import { initiatePasswordReset } from "@/lib/actions/auth.action";
 import Link from "next/link";
 
 export default function ForgotPassword() {
@@ -16,13 +15,18 @@ export default function ForgotPassword() {
     e.preventDefault();
     setIsLoading(true);
 
-    const result = await sendResetOtp(email);
+    try {
+      const result = await initiatePasswordReset(email);
 
-    if (result?.success) {
-      toast.success("OTP sent to your email");
-      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-    } else {
-      toast.error(result?.message || "Failed to send OTP");
+      if (result.success) {
+        toast.success("Password reset email sent. Please check your inbox.");
+        router.push("/sign-in");
+      } else {
+        toast.error(result.message || "Failed to send reset email");
+      }
+    } catch (error) {
+      console.error("Password reset error:", error);
+      toast.error("Failed to initiate password reset");
     }
 
     setIsLoading(false);
@@ -31,11 +35,10 @@ export default function ForgotPassword() {
   return (
     <div className="card-border lg:min-w-[566px]">
       <div className="flex flex-col gap-6 card py-14 px-10">
-        <div className="flex flex-row gap-2 justify-center">
-          <Image src="/logo.svg" alt="logo" height={32} width={32} />
-          <h2 className="text-primary-100">AceIT</h2>
-        </div>
-        <h3>Reset Your Password</h3>
+        <h3 className="text-center">Reset Your Password</h3>
+        <p className="text-center text-muted-foreground">
+          Enter your email address and we'll send you a link to reset your password.
+        </p>
 
         <form onSubmit={handleSubmit} className="w-full space-y-6 mt-4">
           <div className="space-y-2">
@@ -58,7 +61,7 @@ export default function ForgotPassword() {
             disabled={isLoading}
             className="btn w-full"
           >
-            {isLoading ? "Sending..." : "Send OTP"}
+            {isLoading ? "Sending..." : "Send Reset Link"}
           </button>
         </form>
 

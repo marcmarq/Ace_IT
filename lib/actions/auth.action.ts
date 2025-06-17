@@ -3,7 +3,8 @@
 import { auth, db } from "@/firebase/admin";
 import { cookies } from "next/headers";
 import { sendOtpEmail } from "@/lib/nodemailer";
-import { Auth, getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { Auth, getAuth, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, confirmPasswordReset } from "firebase/auth";
+import * as firebaseAuth from "firebase/auth";
 import {app} from "@/firebase/client"
 
 
@@ -336,6 +337,58 @@ export async function disableMFA(uid: string) {
     return {
       success: false,
       message: "Failed to disable MFA"
+    };
+  }
+}
+
+export async function initiatePasswordReset(email: string) {
+  try {
+    const clientAuth = getAuth(app);
+    await firebaseAuth.sendPasswordResetEmail(clientAuth, email);
+    
+    return { 
+      success: true, 
+      message: "Password reset email sent successfully" 
+    };
+  } catch (e: any) {
+    console.error("Error sending password reset email:", e);
+    
+    if (e.code === "auth/user-not-found") {
+      return { 
+        success: false, 
+        message: "No user found with this email address" 
+      };
+    }
+    
+    return { 
+      success: false, 
+      message: "Failed to send password reset email" 
+    };
+  }
+}
+
+export async function completePasswordReset(oobCode: string, newPassword: string) {
+  try {
+    const clientAuth = getAuth(app);
+    await firebaseAuth.confirmPasswordReset(clientAuth, oobCode, newPassword);
+    
+    return { 
+      success: true, 
+      message: "Password reset successfully" 
+    };
+  } catch (e: any) {
+    console.error("Error resetting password:", e);
+    
+    if (e.code === "auth/invalid-action-code") {
+      return { 
+        success: false, 
+        message: "Invalid or expired reset link" 
+      };
+    }
+    
+    return { 
+      success: false, 
+      message: "Failed to reset password" 
     };
   }
 }
