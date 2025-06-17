@@ -11,7 +11,7 @@ import {app} from "@/firebase/client"
 const ONE_WEEK = 60 * 60 * 24 * 7
 
 export async function signUp(params: SignUpParams) {
-  const { uid, name, email } = params;
+  const { uid, firstName, lastName, email } = params;
 
   try {
     const userRecord = await db.collection("users").doc(uid).get();
@@ -24,7 +24,8 @@ export async function signUp(params: SignUpParams) {
     }
 
     await db.collection("users").doc(uid).set({
-      name,
+      firstName,
+      lastName,
       email,
     });
 
@@ -138,7 +139,7 @@ export async function getCurrentUser(): Promise<User | null> {
     }
 
     const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
-    console.log("Session cookie verified:", decodedClaims.uid);
+    console.log("Session cookie verified:", decodedClaims.uid, decodedClaims);
 
     const userRecord = await db.collection('users').doc(decodedClaims.uid).get();
 
@@ -152,7 +153,10 @@ export async function getCurrentUser(): Promise<User | null> {
       id: userRecord.id, 
     } as User;
   } catch (e){
-    console.error("Error in getCurrentUser:", e);
+    console.error("Error in getCurrentUser:", e, typeof e, JSON.stringify(e));
+    if (e instanceof Error) {
+      console.error("Error message:", e.message, "Stack:", e.stack);
+    }
     return null;
   }
 }

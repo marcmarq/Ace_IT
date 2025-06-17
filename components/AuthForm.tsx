@@ -17,13 +17,22 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  sendEmailVerification,
 } from "firebase/auth";
 import { auth } from "@/firebase/client";
 import { signIn, signUp, signInWithGoogle } from "@/lib/actions/auth.action";
 
+// Declare recaptchaVerifier on window
+declare global {
+  interface Window {
+    recaptchaVerifier?: any;
+  }
+}
+
 const AuthFormSchema = (type: FormType) => {
   return z.object({
-    name: type === "sign-up" ? z.string().min(3) : z.string().optional(),
+    firstName: type === "sign-up" ? z.string().min(1, "First name is required") : z.string().optional(),
+    lastName: type === "sign-up" ? z.string().min(1, "Last name is required") : z.string().optional(),
     email: z.string().email(),
     password: z.string().min(8),
   });
@@ -36,67 +45,79 @@ const AuthForm = ({ type }: { type: FormType }) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
     },
   });
 
+  const [showVerifyNotice, setShowVerifyNotice] = useState(false);
+  const [pendingUser, setPendingUser] = useState<any>(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendError, setResendError] = useState("");
+  const [checkingVerification, setCheckingVerification] = useState(false);
+  const [checkError, setCheckError] = useState("");
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       if (type === "sign-up") {
-        const { name, email, password } = values;
-
+        const { firstName, lastName, email, password } = values;
+        // 1. Create user
         const userCredentials = await createUserWithEmailAndPassword(
           auth,
           email,
           password
         );
-
-        const result = await signUp({
-          uid: userCredentials.user.uid,
-          name: name!,
-          email,
-          password,
-        });
-
-        if (!result?.success) {
-          toast.error(result.message);
-          return;
-        }
-
-        toast.success("Account Created Successfully");
-        window.location.href = "/sign-in";
+        // 2. Send email verification
+        await sendEmailVerification(userCredentials.user);
+        setShowVerifyNotice(true);
+        setPendingUser(userCredentials.user);
+        toast.success("Account created! Please check your email to verify your account.");
+        return;
       } else {
         const { email, password } = values;
-        const userCredential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
-        const idToken = await userCredential.user.getIdToken();
-
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        if (!user.emailVerified) {
+          setShowVerifyNotice(true);
+          setPendingUser(user);
+          toast.error("Please verify your email before signing in.");
+          return;
+        }
+        const idToken = await user.getIdToken();
         if (!idToken) {
           toast.error("Sign in failed");
           return;
         }
-
         const signInResult = await signIn({
-          email,
+          email: String(form.getValues('email')),
           idToken,
         });
-
         if (!signInResult.success) {
           toast.error(signInResult.message);
           return;
         }
-
         toast.success("Signed In");
         window.location.href = "/";
       }
     } catch (error) {
       console.log(error);
       toast.error(`There was an error: ${error}`);
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!pendingUser) return;
+    setResendLoading(true);
+    setResendError("");
+    try {
+      await sendEmailVerification(pendingUser);
+      toast.success("Verification email resent!");
+    } catch (error) {
+      setResendError("Failed to resend verification email.");
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -143,6 +164,38 @@ const AuthForm = ({ type }: { type: FormType }) => {
     }
   }
 
+  async function handleCheckVerification() {
+    if (!pendingUser) return;
+    setCheckingVerification(true);
+    setCheckError("");
+    try {
+      await pendingUser.reload();
+      if (pendingUser.emailVerified) {
+        // Create user record in DB after verification
+        const result = await signUp({
+          uid: pendingUser.uid,
+          firstName: form.getValues('firstName') || '',
+          lastName: form.getValues('lastName') || '',
+          email: form.getValues('email') || '',
+          password: form.getValues('password') || '',
+        });
+        console.log('signUp result:', result);
+        if (!result?.success) {
+          setCheckError(result?.message || 'Failed to create user record.');
+          return;
+        }
+        toast.success("Email verified! Redirecting...");
+        window.location.href = "/";
+      } else {
+        setCheckError("Email is still not verified. Please check your inbox and click the verification link.");
+      }
+    } catch (error) {
+      setCheckError("Failed to check verification status.");
+    } finally {
+      setCheckingVerification(false);
+    }
+  }
+
   const isSignIn = type === "sign-in";
 
   return (
@@ -159,12 +212,20 @@ const AuthForm = ({ type }: { type: FormType }) => {
             className="w-full space-y-6 mt-4 form"
           >
             {!isSignIn && (
-              <FormField
-                control={form.control}
-                name="name"
-                label="Name"
-                placeholder="Your Name"
-              />
+              <>
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  label="First Name"
+                  placeholder="Your First Name"
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  label="Last Name"
+                  placeholder="Your Last Name"
+                />
+              </>
             )}
             <FormField
               control={form.control}
@@ -193,6 +254,22 @@ const AuthForm = ({ type }: { type: FormType }) => {
             </Button>
           </form>
         </Form>
+
+        {showVerifyNotice && (
+          <div className="mt-4 p-4 border border-yellow-400 bg-yellow-50 rounded">
+            <p className="mb-2">A verification email has been sent to your email address. Please verify your email to continue.</p>
+            <Button className="btn" onClick={handleResendVerification} disabled={resendLoading}>
+              {resendLoading ? "Resending..." : "Resend Verification Email"}
+            </Button>
+            <Button className="btn ml-2" onClick={handleCheckVerification} disabled={checkingVerification}>
+              {checkingVerification ? "Checking..." : "I've verified my email"}
+            </Button>
+            {resendError && <p className="text-red-500 mt-2">{resendError}</p>}
+            {checkError && <p className="text-red-500 mt-2">{checkError}</p>}
+          </div>
+        )}
+
+        <div id="recaptcha-container"></div>
 
         <Button
           variant="outline"
