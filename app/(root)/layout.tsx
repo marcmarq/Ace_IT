@@ -1,6 +1,5 @@
 import { getCurrentUser } from "@/lib/actions/auth.action";
-import Image from "next/image";
-import Link from "next/link";
+import Navbar from "@/components/Navbar";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 
@@ -15,12 +14,7 @@ const RootLayout = async ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="root-layout">
-      <nav>
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/Logo.png" alt="logo" width={88} height={82} />
-          <h2>AceIT</h2>
-        </Link>
-      </nav>
+      <Navbar />
       {children}
     </div>
   );

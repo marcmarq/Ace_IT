@@ -1,6 +1,12 @@
+"use client";
+
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { auth } from "@/firebase/client";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils"
 
@@ -54,6 +60,37 @@ function Button({
       {...props}
     />
   )
+}
+
+export function LogoutButton() {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      
+      // Clear the session cookie by making a request to clear it server-side
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      
+      // Force a hard refresh to the sign-in page to ensure all state is cleared
+      window.location.href = "/sign-in";
+      toast.success("Logged out successfully");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast.error("Failed to log out");
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      className="text-light-100 hover:underline font-medium"
+    >
+      Logout
+    </button>
+  );
 }
 
 export { Button, buttonVariants }
