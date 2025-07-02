@@ -1,3 +1,5 @@
+"use client";
+export const dynamic = "force-dynamic";
 import InterviewCard from "@/components/InterviewCard";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/actions/auth.action";

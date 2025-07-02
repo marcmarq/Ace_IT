@@ -1,3 +1,5 @@
+"use client";
+export const dynamic = "force-dynamic";
 import AuthForm from "@/components/AuthForm";
 import React from "react";
 

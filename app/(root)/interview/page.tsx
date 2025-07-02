@@ -1,3 +1,5 @@
+"use client";
+export const dynamic = "force-dynamic";
 import Agent from "@/components/Agent";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 
