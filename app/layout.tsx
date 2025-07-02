@@ -11,6 +11,8 @@ const monaSans = Mona_Sans({
   subsets: ["latin"],
 });
 
+export const dynamic = "force-dynamic";
+
 export const BackgroundBeamsWithCollision = ({
   children,
   className,

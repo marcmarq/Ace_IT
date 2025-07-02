@@ -1,13 +1,13 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { completePasswordReset } from "@/lib/actions/auth.action";
 import Link from "next/link";
 
-export default function ResetPassword() {
+function ResetPasswordInner() {
   const searchParams = useSearchParams();
   const oobCode = searchParams.get("oobCode");
   const [newPassword, setNewPassword] = useState("");
@@ -116,5 +116,13 @@ export default function ResetPassword() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ResetPassword() {
+  return (
+    <Suspense>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
