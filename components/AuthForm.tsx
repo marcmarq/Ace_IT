@@ -73,7 +73,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
         await sendEmailVerification(userCredentials.user);
         setShowVerifyNotice(true);
         setPendingUser(userCredentials.user);
-        toast.success("Account created! Please check your email to verify your account.");
+        toast.success("Account created! Please verify your email to continue.");
         return;
       } else {
         const { email, password } = values;
@@ -87,7 +87,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
         }
         const idToken = await user.getIdToken();
         if (!idToken) {
-          toast.error("Sign in failed");
+          toast.error("Sign in failed. Please check your credentials and try again.");
           return;
         }
         const signInResult = await signIn({
@@ -95,15 +95,20 @@ const AuthForm = ({ type }: { type: FormType }) => {
           idToken,
         });
         if (!signInResult.success) {
-          toast.error(signInResult.message);
+          toast.error(`Sign in failed: ${signInResult.message}`);
           return;
         }
-        toast.success("Signed In");
+        toast.success("Signed in successfully!");
         window.location.href = "/";
       }
     } catch (error) {
       console.log(error);
-      toast.error(`There was an error: ${error}`);
+      // Show a more specific error if available
+      if (error && typeof error === "object" && "message" in error && error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error("An error occurred during sign in. Please try again.");
+      }
     }
   }
 
@@ -113,9 +118,9 @@ const AuthForm = ({ type }: { type: FormType }) => {
     setResendError("");
     try {
       await sendEmailVerification(pendingUser);
-      toast.success("Verification email resent!");
+      toast.success("Verification email sent again! Please check your inbox.");
     } catch (error) {
-      setResendError("Failed to resend verification email.");
+      setResendError("Unable to resend verification email. Please try again.");
     } finally {
       setResendLoading(false);
     }
@@ -134,7 +139,7 @@ const AuthForm = ({ type }: { type: FormType }) => {
       const idToken = await user.getIdToken();
 
       if (!idToken) {
-        toast.error("Google Sign in failed");
+        toast.error("Google sign-in failed. Please try again.");
         return;
       }
 
@@ -154,9 +159,9 @@ const AuthForm = ({ type }: { type: FormType }) => {
       let errorMessage = "Google Authentication failed";
       if (error instanceof Error) {
         if (error.message.includes("popup-closed-by-user")) {
-          errorMessage = "Sign in window was closed";
+          errorMessage = "Google sign-in was cancelled.";
         } else if (error.message.includes("account-exists-with-different-credential")) {
-          errorMessage = "Account already exists with different method";
+          errorMessage = "An account already exists with a different sign-in method.";
         }
       }
       
@@ -187,10 +192,10 @@ const AuthForm = ({ type }: { type: FormType }) => {
         toast.success("Email verified! Redirecting...");
         window.location.href = "/";
       } else {
-        setCheckError("Email is still not verified. Please check your inbox and click the verification link.");
+        setCheckError("Your email is not verified yet. Please check your inbox.");
       }
     } catch (error) {
-      setCheckError("Failed to check verification status.");
+      setCheckError("Could not check verification status. Please try again.");
     } finally {
       setCheckingVerification(false);
     }

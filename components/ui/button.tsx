@@ -76,10 +76,10 @@ export function LogoutButton() {
       
       // Force a hard refresh to the sign-in page to ensure all state is cleared
       window.location.href = "/sign-in";
-      toast.success("Logged out successfully");
+      toast.success("You have been logged out.");
     } catch (error) {
       console.error("Error logging out:", error);
-      toast.error("Failed to log out");
+      toast.error("Logout failed. Please try again.");
     }
   };
 

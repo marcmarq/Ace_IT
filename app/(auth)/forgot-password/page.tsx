@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 "use client";
 
 import { useState } from "react";
@@ -19,14 +21,14 @@ export default function ForgotPassword() {
       const result = await initiatePasswordReset(email);
 
       if (result.success) {
-        toast.success("Password reset email sent. Please check your inbox.");
+        toast.success("Password reset link sent! Please check your email.");
         router.push("/sign-in");
       } else {
-        toast.error(result.message || "Failed to send reset email");
+        toast.error(result.message || "Unable to send password reset email. Please try again.");
       }
     } catch (error) {
       console.error("Password reset error:", error);
-      toast.error("Failed to initiate password reset");
+      toast.error("Something went wrong. Please try again later.");
     }
 
     setIsLoading(false);

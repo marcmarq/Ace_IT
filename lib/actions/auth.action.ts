@@ -6,12 +6,20 @@ import { sendOtpEmail } from "@/lib/nodemailer";
 import { Auth, getAuth, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, confirmPasswordReset } from "firebase/auth";
 import * as firebaseAuth from "firebase/auth";
 import {app} from "@/firebase/client"
+import { rateLimit } from "@/lib/rateLimiter";
 
 
 const ONE_WEEK = 60 * 60 * 24 * 7
 
 export async function signUp(params: SignUpParams) {
   const { uid, firstName, lastName, email } = params;
+
+  if (rateLimit(email)) {
+    return {
+      success: false,
+      message: "Too many sign up attempts. Please wait a minute before trying again."
+    };
+  }
 
   try {
     const userRecord = await db.collection("users").doc(uid).get();
@@ -52,6 +60,13 @@ export async function signUp(params: SignUpParams) {
 
 export async function signIn(params: SignInParams) {
   const { email, idToken } = params;
+
+  if (rateLimit(email)) {
+    return {
+      success: false,
+      message: "Too many login attempts. Please wait a minute and try again."
+    };
+  }
 
   try {
     const userRecord = await auth.getUserByEmail(email);
